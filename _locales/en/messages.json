@@ -1,0 +1,48 @@
+{
+  "extName": { "message": "YT PureStream" },
+  "extDescription": { "message": "Lightweight YouTube-only video ad blocker. Skips pre-roll, mid-roll and overlay ads without touching any other website." },
+  "actionTitle": { "message": "YT PureStream" },
+
+  "labelAdFree": { "message": "YouTube Ad-Free" },
+  "statusActive": { "message": "Active" },
+  "statusPaused": { "message": "Paused" },
+  "toggleTitle": { "message": "Enable / disable YT PureStream" },
+  "langSwitch": { "message": "বাংলা" },
+  "langSwitchTitle": { "message": "Switch language" },
+
+  "adsSkipped": { "message": "ads skipped" },
+  "today": { "message": "Today" },
+  "timeSaved": { "message": "Time saved" },
+  "unitSec": { "message": "{0} sec" },
+  "unitMin": { "message": "{0} min" },
+  "unitHourMin": { "message": "{0} h {1} min" },
+  "reset": { "message": "Reset" },
+  "resetSure": { "message": "Sure?" },
+  "resetTitle": { "message": "Reset counters" },
+
+  "compatTitle": { "message": "Compatibility mode on" },
+  "compatBody": { "message": "YouTube flagged an ad blocker, so tracking-related blocks were turned off to keep videos playing." },
+  "compatRetry": { "message": "Try strict mode again" },
+
+  "healthTitle": { "message": "YouTube may have changed." },
+  "healthBody": { "message": "Ads were detected but could not be handled. Check for an extension update." },
+  "healthPersists": { "message": "YouTube still shows its ad blocker warning. Check for an extension update." },
+  "dismiss": { "message": "Dismiss" },
+
+  "settings": { "message": "Settings" },
+  "featVideo": { "message": "Video ads (skip & speed up)" },
+  "featOverlay": { "message": "Overlay ads" },
+  "featCosmetic": { "message": "Banners & feed clutter" },
+
+  "channelsTitle": { "message": "Support creators" },
+  "channelsHint": { "message": "Page-level ad skipping is paused on allowed channels." },
+  "channelCurrent": { "message": "Current channel" },
+  "channelAllow": { "message": "Allow ads" },
+  "channelAllowed": { "message": "Allowed" },
+  "channelNone": { "message": "Open a YouTube video to allow its channel." },
+  "channelEmpty": { "message": "No allowed channels yet." },
+  "channelRemove": { "message": "Remove" },
+
+  "hint": { "message": "Works only on youtube.com. Changes apply instantly." },
+  "support": { "message": "Support this project" }
+}

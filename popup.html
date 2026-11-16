@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>YT PureStream</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      width: 280px;
+      margin: 0;
+      padding: 16px;
+      background: #121212;
+      color: #f1f1f1;
+      font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Bengali", sans-serif;
+    }
+
+    [hidden] { display: none !important; }
+
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+    h1 span { color: #ff4e45; }
+
+    .chip {
+      padding: 2px 9px;
+      font: inherit;
+      font-size: 12px;
+      color: #b5b5b5;
+      background: transparent;
+      border: 1px solid #3a3a3a;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .chip:hover { color: #f1f1f1; border-color: #666; }
+
+    .card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      background: #1e1e1e;
+      border: 1px solid #2c2c2c;
+      border-radius: 12px;
+    }
+
+    .label { font-size: 12px; color: #9a9a9a; }
+    #status { font-weight: 600; }
+    #status.active { color: #3ddc84; }
+    #status.paused { color: #ffb74d; }
+
+    /* Toggle switch */
+    .switch { position: relative; width: 44px; height: 24px; flex: none; }
+    .switch.sm { width: 34px; height: 18px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; inset: 0;
+      background: #444;
+      border-radius: 24px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .slider::before {
+      content: "";
+      position: absolute;
+      width: 18px; height: 18px;
+      left: 3px; top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .switch.sm .slider::before { width: 12px; height: 12px; left: 3px; top: 3px; }
+    input:checked + .slider { background: #3ddc84; }
+    input:checked + .slider::before { transform: translateX(20px); }
+    .switch.sm input:checked + .slider::before { transform: translateX(16px); }
+    input:focus-visible + .slider { outline: 2px solid #8ab4f8; outline-offset: 2px; }
+
+    /* Notices (compatibility mode / health) */
+    .notice {
+      margin-top: 10px;
+      padding: 10px 12px;
+      font-size: 12px;
+      border-radius: 10px;
+      border: 1px solid;
+    }
+    .notice b { display: block; margin-bottom: 2px; }
+    .notice p { margin: 0 0 6px; color: #d0d0d0; }
+    .notice.warn { background: #2a2214; border-color: #5c4a1c; color: #ffcc80; }
+    .notice.info { background: #14212a; border-color: #1c4a5c; color: #80d4ff; }
+    .link {
+      padding: 0;
+      font: inherit;
+      font-size: 12px;
+      color: #8ab4f8;
+      background: none;
+      border: 0;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* Stats card */
+    .stats {
+      margin-top: 10px;
+      padding: 16px 14px 12px;
+      text-align: center;
+      background: linear-gradient(160deg, #1b2a21 0%, #1e1e1e 70%);
+      border: 1px solid #2c2c2c;
+      border-radius: 12px;
+      transition: opacity 0.2s, filter 0.2s;
+    }
+    body.off .stats { opacity: 0.5; filter: grayscale(1); }
+
+    .count {
+      display: inline-block;
+      font-size: 44px;
+      font-weight: 700;
+      line-height: 1.1;
+      color: #3ddc84;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -1px;
+    }
+    .count.bump { animation: bump 0.45s ease-out; }
+    @keyframes bump {
+      0%   { transform: scale(1); }
+      35%  { transform: scale(1.18); }
+      100% { transform: scale(1); }
+    }
+
+    .stats-title { margin-top: 2px; font-size: 12px; color: #b5b5b5; }
+
+    .stats-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid #2c2c2c;
+      font-size: 12px;
+      color: #9a9a9a;
+      text-align: left;
+    }
+    .stats-row b { color: #f1f1f1; font-variant-numeric: tabular-nums; }
+
+    #reset {
+      padding: 3px 8px;
+      font: inherit;
+      color: #9a9a9a;
+      background: transparent;
+      border: 1px solid #3a3a3a;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #reset:hover { color: #f1f1f1; border-color: #666; }
+
+    /* Settings (collapsible) */
+    details {
+      margin-top: 10px;
+      background: #1e1e1e;
+      border: 1px solid #2c2c2c;
+      border-radius: 12px;
+    }
+    summary {
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      list-style: none;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "▾"; float: right; color: #9a9a9a; }
+    details[open] summary::after { content: "▴"; }
+    .settings-body { padding: 0 14px 12px; }
+
+    .opt {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 5px 0;
+      font-size: 12px;
+    }
+
+    .section {
+      margin: 10px 0 2px;
+      padding-top: 10px;
+      border-top: 1px solid #2c2c2c;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .small { margin: 0 0 8px; font-size: 11px; color: #777; }
+
+    #channelNow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+    }
+    #channelName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #f1f1f1; }
+    #channelNone { margin: 0; font-size: 11px; color: #777; }
+    .btn {
+      padding: 3px 8px;
+      font: inherit;
+      font-size: 12px;
+      color: #f1f1f1;
+      background: #2a2a2a;
+      border: 1px solid #3a3a3a;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn:hover { border-color: #666; }
+
+    #allowList { margin: 8px 0 0; padding: 0; list-style: none; max-height: 90px; overflow-y: auto; }
+    #allowList li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 3px 0;
+      font-size: 12px;
+      color: #d0d0d0;
+    }
+    #allowList .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #allowEmpty { margin: 8px 0 0; font-size: 11px; color: #777; }
+
+    .hint { margin: 12px 2px 0; font-size: 11px; color: #777; }
+    #support {
+      display: inline-block;
+      margin: 6px 2px 0;
+      font-size: 12px;
+      color: #ff8a80;
+      text-decoration: none;
+    }
+    #support:hover { text-decoration: underline; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .count.bump { animation: none; }
+      .slider, .slider::before, .stats { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <h1>YT <span>PureStream</span></h1>
+    <button id="lang" class="chip" type="button" data-i18n="langSwitch" data-i18n-title="langSwitchTitle"></button>
+  </div>
+
+  <div class="card">
+    <div>
+      <div class="label" data-i18n="labelAdFree"></div>
+      <div id="status" class="active"></div>
+    </div>
+    <label class="switch" data-i18n-title="toggleTitle">
+      <input type="checkbox" id="toggle" checked />
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div id="compat" class="notice warn" hidden>
+    <b data-i18n="compatTitle"></b>
+    <p data-i18n="compatBody"></p>
+    <button id="compatRetry" class="link" type="button" data-i18n="compatRetry"></button>
+  </div>
+
+  <div id="health" class="notice info" hidden>
+    <b data-i18n="healthTitle"></b>
+    <p id="healthBody"></p>
+    <button id="healthDismiss" class="link" type="button" data-i18n="dismiss"></button>
+  </div>
+
+  <div class="stats">
+    <div id="total" class="count">0</div>
+    <div class="stats-title" data-i18n="adsSkipped"></div>
+    <div class="stats-row">
+      <div>
+        <div><span data-i18n="today"></span>: <b id="today">0</b></div>
+        <div><span data-i18n="timeSaved"></span>: <b id="saved">0</b></div>
+      </div>
+      <button id="reset" type="button" data-i18n="reset" data-i18n-title="resetTitle"></button>
+    </div>
+  </div>
+
+  <details id="settings">
+    <summary data-i18n="settings"></summary>
+    <div class="settings-body">
+      <label class="opt">
+        <span data-i18n="featVideo"></span>
+        <span class="switch sm"><input type="checkbox" id="fVideo" /><span class="slider"></span></span>
+      </label>
+      <label class="opt">
+        <span data-i18n="featOverlay"></span>
+        <span class="switch sm"><input type="checkbox" id="fOverlay" /><span class="slider"></span></span>
+      </label>
+      <label class="opt">
+        <span data-i18n="featCosmetic"></span>
+        <span class="switch sm"><input type="checkbox" id="fCosmetic" /><span class="slider"></span></span>
+      </label>
+
+      <div class="section" data-i18n="channelsTitle"></div>
+      <p class="small" data-i18n="channelsHint"></p>
+      <div id="channelNow" hidden>
+        <span id="channelName"></span>
+        <button id="channelToggle" class="btn" type="button"></button>
+      </div>
+      <p id="channelNone" data-i18n="channelNone"></p>
+      <ul id="allowList"></ul>
+      <p id="allowEmpty" data-i18n="channelEmpty"></p>
+    </div>
+  </details>
+
+  <p class="hint" data-i18n="hint"></p>
+  <a id="support" href="#" target="_blank" rel="noopener noreferrer" hidden>
+    &#9829; <span data-i18n="support"></span>
+  </a>
+
+  <script src="common.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

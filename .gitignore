@@ -1,0 +1,15 @@
+# Dependencies and build output
+node_modules/
+dist/
+
+# Created by Chrome when the folder is loaded as an unpacked extension
+_metadata/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local Playwright / test scratch
+*.log

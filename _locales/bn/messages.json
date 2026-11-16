@@ -1,0 +1,48 @@
+{
+  "extName": { "message": "YT PureStream" },
+  "extDescription": { "message": "হালকা, শুধু ইউটিউবের জন্য ভিডিও বিজ্ঞাপন ব্লকার। অন্য কোনো ওয়েবসাইটে হাত না দিয়ে প্রি-রোল, মিড-রোল ও ওভারলে বিজ্ঞাপন স্কিপ করে।" },
+  "actionTitle": { "message": "YT PureStream" },
+
+  "labelAdFree": { "message": "ইউটিউব বিজ্ঞাপনমুক্ত" },
+  "statusActive": { "message": "চালু" },
+  "statusPaused": { "message": "বন্ধ" },
+  "toggleTitle": { "message": "YT PureStream চালু / বন্ধ করুন" },
+  "langSwitch": { "message": "English" },
+  "langSwitchTitle": { "message": "ভাষা বদলান" },
+
+  "adsSkipped": { "message": "বিজ্ঞাপন স্কিপ হয়েছে" },
+  "today": { "message": "আজ" },
+  "timeSaved": { "message": "সময় বাঁচানো" },
+  "unitSec": { "message": "{0} সেকেন্ড" },
+  "unitMin": { "message": "{0} মিনিট" },
+  "unitHourMin": { "message": "{0} ঘণ্টা {1} মিনিট" },
+  "reset": { "message": "রিসেট" },
+  "resetSure": { "message": "নিশ্চিত?" },
+  "resetTitle": { "message": "কাউন্টার রিসেট করুন" },
+
+  "compatTitle": { "message": "কম্প্যাটিবিলিটি মোড চালু" },
+  "compatBody": { "message": "ইউটিউব অ্যাড ব্লকার ধরে ফেলায় ভিডিও চালু রাখতে ট্র্যাকিং-সংক্রান্ত ব্লক বন্ধ করা হয়েছে।" },
+  "compatRetry": { "message": "আবার কড়া মোড চালু করুন" },
+
+  "healthTitle": { "message": "ইউটিউব সম্ভবত বদলে গেছে।" },
+  "healthBody": { "message": "বিজ্ঞাপন ধরা পড়েছে কিন্তু সামলানো যায়নি। এক্সটেনশনের নতুন ভার্সন আছে কিনা দেখুন।" },
+  "healthPersists": { "message": "ইউটিউব এখনও অ্যাড ব্লকারের সতর্কবার্তা দেখাচ্ছে। এক্সটেনশনের নতুন ভার্সন আছে কিনা দেখুন।" },
+  "dismiss": { "message": "বন্ধ করুন" },
+
+  "settings": { "message": "সেটিংস" },
+  "featVideo": { "message": "ভিডিও বিজ্ঞাপন (স্কিপ ও দ্রুত চালানো)" },
+  "featOverlay": { "message": "ওভারলে বিজ্ঞাপন" },
+  "featCosmetic": { "message": "ব্যানার ও ফিডের বিজ্ঞাপন" },
+
+  "channelsTitle": { "message": "ক্রিয়েটরদের সাপোর্ট করুন" },
+  "channelsHint": { "message": "অনুমোদিত চ্যানেলে পেজ-স্তরের বিজ্ঞাপন স্কিপ বন্ধ থাকে।" },
+  "channelCurrent": { "message": "বর্তমান চ্যানেল" },
+  "channelAllow": { "message": "বিজ্ঞাপন চলতে দিন" },
+  "channelAllowed": { "message": "অনুমোদিত" },
+  "channelNone": { "message": "চ্যানেল অনুমোদন করতে একটি ইউটিউব ভিডিও খুলুন।" },
+  "channelEmpty": { "message": "এখনও কোনো চ্যানেল অনুমোদিত নেই।" },
+  "channelRemove": { "message": "সরান" },
+
+  "hint": { "message": "শুধু youtube.com-এ কাজ করে। পরিবর্তন সঙ্গে সঙ্গে কার্যকর হয়।" },
+  "support": { "message": "প্রজেক্টটি সাপোর্ট করুন" }
+}
