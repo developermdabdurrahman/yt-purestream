@@ -1,0 +1,49 @@
+name: Release
+
+# Push a tag like v1.2.0 (it must match "version" in manifest.json) and this
+# workflow tests the extension, builds the ZIP and attaches it to a new
+# GitHub Release.
+#
+#   git tag v1.2.0 && git push origin v1.2.0
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # needed to create the release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Tag must match manifest version
+        run: |
+          VERSION=$(node -p "require('./manifest.json').version")
+          if [ "v$VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match manifest version v$VERSION" >&2
+            exit 1
+          fi
+
+      - run: npm run lint
+
+      - run: npx playwright-core install --with-deps chromium
+
+      - run: npm test
+
+      - run: npm run build
+
+      - name: Create release and upload ZIP
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/YT-PureStream-*.zip
+          generate_release_notes: true
