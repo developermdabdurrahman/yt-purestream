@@ -17,9 +17,11 @@
  * shows its anti-adblock dialog, health reports when selectors stop working,
  * per-feature switches and a per-channel allowlist.
  *
- * Triggers: MutationObserver on the player, a requestAnimationFrame loop while
- * an ad is active, a slow interval as a safety net (also works in background
- * tabs), and YouTube's SPA navigation events.
+ * Triggers: MutationObserver on the player (only once it exists - there is no
+ * page-wide observer), a requestAnimationFrame loop while an ad is active, a
+ * slow interval as a safety net (also works in background tabs), a short fast
+ * poll while the player is still being created, and YouTube's SPA navigation
+ * events.
  */
 (() => {
   'use strict';
@@ -46,6 +48,12 @@
     COUNT_DEDUPE_MS: 1000,
     ENFORCEMENT_CHECK_MS: 1000,
     CHANNEL_CACHE_MS: 400,
+    MIN_TICK_GAP_MS: 100,                  // observer-driven ticks are spaced at least this far apart
+    STORAGE_WAIT_MS: 250,                  // wait for saved settings this long before using defaults
+    PLAYER_POLL_MS: 100,                   // fast poll while waiting for #movie_player ...
+    PLAYER_POLL_WINDOW_MS: 8000,           // ... for this long after load / navigation
+    CHANNEL_WAIT_MS: 1500,                 // wait this long for the owner link before a pre-roll
+    NAV_STALE_MS: 4000,                    // ignore the old page's channel this long after navigate-start
     RELOAD_GUARD_MS: 60000,                // reload at most once per minute
     HEALTH_NO_VIDEO_MS: 10000,             // ad state but no <video> for this long
     HEALTH_AD_STUCK_MS: 150000,            // same ad state for this long
@@ -57,6 +65,7 @@
     ENFORCEMENT: 'ytps:enforcement',
     HEALTH: 'ytps:health',
     GET_CHANNEL: 'ytps:get-channel',
+    ALLOW_TAB: 'ytps:allow-tab',
   };
 
   const AD_CLASSES = ['ad-showing', 'ad-interrupting'];
@@ -77,8 +86,27 @@
   const SHORTS_NEXT_WRAPPER = '#navigation-button-down';          // fallback
 
   // YouTube's anti-adblock ("Ad blockers are not allowed") dialog.
-  const ENFORCEMENT_SELECTOR = 'ytd-enforcement-message-view-model';
-  const ENFORCEMENT_TEXT = /ad blockers?\s+(are|is)\s+not\s+allowed|ad blockers? violate/i;
+  // Structural markers (language independent) ...
+  const ENFORCEMENT_SELECTOR = [
+    'ytd-enforcement-message-view-model',
+    'tp-yt-paper-dialog [class*="enforcement"]',
+    'tp-yt-paper-dialog [id*="enforcement"]',
+  ].join(',');
+  // ... and the wording in the most common interface languages, as a backup.
+  const ENFORCEMENT_TEXTS = [
+    /ad blockers?\s+(are|is)\s+not\s+allowed|ad blockers?\s+violate/i,        // English
+    /(?:বিজ্ঞাপন|অ্যাড|এড)\s*ব্লকার/,                                           // Bengali
+    /(?:विज्ञापन\s*अवरोधक|ए?ड\s*ब्लॉकर|ऐड\s*ब्लॉकर)/,                         // Hindi
+    /bloqueadores?\s+de\s+anuncios/i,                           // Spanish, Portuguese
+    /bloqueurs?\s+de\s+publicit/i,                                              // French
+    /werbeblocker/i,                                                             // German
+    /pemblokir\s+iklan/i,                                                        // Indonesian
+    /reklam\s+engelleyici/i,                                                     // Turkish
+    /блокировщик\S*\s+рекламы/i,                                                // Russian
+    /مانع(?:ات)?\s+الإعلانات/,                                                   // Arabic
+    /広告ブロック/,                                                              // Japanese
+    /광고\s*차단/,                                                               // Korean
+  ];
 
   const CHANNEL_SELECTORS = [
     'ytd-watch-metadata ytd-video-owner-renderer ytd-channel-name a',
@@ -98,9 +126,13 @@
 
   let player = null;                     // current #movie_player element
   let playerObserver = null;             // watches the player
-  let bootstrapObserver = null;          // waits for the player to exist
+  let pollTimer = 0;                     // fast poll while the player does not exist yet
+  let ready = false;                     // saved settings applied (or the wait timed out)
+  let lastTickAt = -Infinity;
   let rafId = 0;
   let tickQueued = false;
+  let tickTimer = 0;                     // pending queued tick (timeout) ...
+  let tickRaf = 0;                       // ... or (animation frame)
 
   let savedState = null;                 // { video, muted, rate } while in an ad
   let inAd = false;                      // an ad break is being handled
@@ -114,13 +146,16 @@
   const healthSent = new Set();
 
   let channelCache = { at: -Infinity, value: null };
+  let navStartedAt = 0;                  // last (SPA) navigation start; 0 = page load
+  let navigating = false;                // between yt-navigate-start and -finish
+  let bypassSent = false;                // we told the worker this tab is allowlisted
 
   let stopped = false;                   // set once the extension is gone (orphaned)
   let intervalId = 0;
 
   const clickLog = new WeakMap();        // button -> { time, count }
-  const countedOverlays = new WeakSet(); // overlay-ad close buttons already counted
-  const handledReels = new WeakSet();    // Shorts ad reels already skipped
+  const countedOverlays = new Set();     // overlay-ad close buttons already counted
+  let handledReel = null;                // the Shorts ad reel we already skipped
 
   /* ------------------------------------------------------------------ *
    * Messaging helpers
@@ -158,12 +193,19 @@
   const getVideo = (p) =>
     p && (p.querySelector('video.html5-main-video') || p.querySelector('video'));
 
-  function isAdShowing(p) {
+  /** The player itself says an ad is playing (the only state in which we touch the media). */
+  function hasAdClass(p) {
     if (!p) return false;
     for (const cls of AD_CLASSES) {
       if (p.classList.contains(cls)) return true;
     }
-    return !!p.querySelector(AD_OVERLAY_SELECTOR);
+    return false;
+  }
+
+  /** Ad state of any kind (player class, or a visible ad overlay). */
+  function isAdShowing(p) {
+    if (!p) return false;
+    return hasAdClass(p) || !!p.querySelector(AD_OVERLAY_SELECTOR);
   }
 
   /** Dispatch a realistic pointer/mouse click sequence at the element centre. */
@@ -193,8 +235,13 @@
    * Throttled per button so we never spam clicks every frame.
    */
   function clickSkipButtons() {
+    // Forget overlay buttons YouTube removed, so a later ad is counted again.
+    for (const el of countedOverlays) {
+      if (!el.isConnected) countedOverlays.delete(el);
+    }
+
     if (!skipQuery) return;
-    const buttons = document.querySelectorAll(skipQuery);
+    const buttons = (player && player.isConnected ? player : document).querySelectorAll(skipQuery);
     if (!buttons.length) return;
 
     const now = performance.now();
@@ -236,8 +283,14 @@
     return null;
   }
 
+  function onVideoPage() {
+    return location.pathname.startsWith('/watch') || location.pathname.startsWith('/shorts');
+  }
+
   function currentChannel() {
     const now = performance.now();
+    // While YouTube swaps pages the old owner link is still in the DOM.
+    if (navigating && now - navStartedAt < CFG.NAV_STALE_MS) return null;
     if (now - channelCache.at > CFG.CHANNEL_CACHE_MS) {
       channelCache = { at: now, value: readChannel() };
     }
@@ -250,10 +303,42 @@
     return !!ch && config.allowlist.includes(ch);
   }
 
+  /**
+   * With a non-empty allowlist, the owner link may render a moment after the
+   * first ad frame. Hold back briefly so a pre-roll on an allowed channel is
+   * not skipped before we can know whose video it is.
+   */
+  function channelPending() {
+    return (
+      config.allowlist.length > 0 &&
+      onVideoPage() &&
+      !currentChannel() &&
+      performance.now() - navStartedAt < CFG.CHANNEL_WAIT_MS
+    );
+  }
+
+  /**
+   * Ask the worker to let this tab's ad requests through (a per-tab
+   * declarativeNetRequest allow rule) while an allowlisted channel is open.
+   */
+  function syncBypass(want) {
+    if (want === bypassSent) return;
+    bypassSent = want;
+    send({ type: MSG.ALLOW_TAB, on: want });
+  }
+
   /* ------------------------------------------------------------------ *
    * Ad handling
    * ------------------------------------------------------------------ */
   function handleAd() {
+    // An ad overlay alone (no ad-showing / ad-interrupting on the player) can be
+    // a banner on top of the real video: never mute, speed up or seek then.
+    if (!hasAdClass(player)) {
+      noVideoSince = 0;
+      restoreVideo();
+      return;
+    }
+
     const video = getVideo(player);
     if (!video) {
       // Ad state but nothing to act on: YouTube probably changed its markup.
@@ -332,13 +417,24 @@
     if (!config.features.video || !location.pathname.startsWith('/shorts')) return;
 
     const reel = document.querySelector('ytd-reel-video-renderer[is-active]');
-    if (!reel || handledReels.has(reel)) return;
-    if (!reel.matches(SHORTS_AD_SELECTOR) && !reel.querySelector(SHORTS_AD_SELECTOR)) return;
+    if (!reel) {
+      handledReel = null;
+      return;
+    }
+    // YouTube recycles reel elements: forget the old one as soon as another
+    // reel is active, or once this one no longer carries ad markers.
+    if (handledReel && handledReel !== reel) handledReel = null;
+    const isAd = reel.matches(SHORTS_AD_SELECTOR) || !!reel.querySelector(SHORTS_AD_SELECTOR);
+    if (!isAd) {
+      if (handledReel === reel) handledReel = null;
+      return;
+    }
+    if (handledReel === reel) return;
 
     const next =
       document.querySelector(SHORTS_NEXT_BUTTON) || document.querySelector(SHORTS_NEXT_WRAPPER);
     if (!next) return;
-    handledReels.add(reel);
+    handledReel = reel;
     reportAdSkipped();
     try { next.click(); } catch (_) { /* ignore */ }
   }
@@ -349,7 +445,8 @@
   function detectEnforcement() {
     if (document.querySelector(ENFORCEMENT_SELECTOR)) return true;
     for (const dialog of document.querySelectorAll('tp-yt-paper-dialog')) {
-      if (ENFORCEMENT_TEXT.test((dialog.textContent || '').slice(0, 2000))) return true;
+      const text = (dialog.textContent || '').slice(0, 2000);
+      if (ENFORCEMENT_TEXTS.some((re) => re.test(text))) return true;
     }
     return false;
   }
@@ -400,11 +497,6 @@
     });
   }
 
-  function stopBootstrap() {
-    if (bootstrapObserver) bootstrapObserver.disconnect();
-    bootstrapObserver = null;
-  }
-
   /** Make sure we are watching the *current* #movie_player. */
   function ensurePlayer() {
     const current = document.getElementById('movie_player');
@@ -412,14 +504,18 @@
     if (current && current === player && player.isConnected) return;
 
     if (current) {
-      stopBootstrap();
       attachPlayer(current);
     } else {
-      // Player not in the DOM yet (document_start) or it was torn down.
+      // Player not in the DOM yet (document_start) or it was torn down. No
+      // page-wide observer (it would run on every DOM change of a busy page):
+      // poll cheaply for a short while, then rely on the interval and
+      // YouTube's navigation events.
       detachPlayer();
-      if (!bootstrapObserver) {
-        bootstrapObserver = new MutationObserver(queueTick);
-        bootstrapObserver.observe(document, { childList: true, subtree: true });
+      if (!pollTimer && performance.now() - navStartedAt < CFG.PLAYER_POLL_WINDOW_MS) {
+        pollTimer = setTimeout(() => {
+          pollTimer = 0;
+          tick();
+        }, CFG.PLAYER_POLL_MS);
       }
     }
   }
@@ -430,7 +526,11 @@
   function queueTick() {
     if (tickQueued) return;
     tickQueued = true;
-    requestAnimationFrame(tick);
+    // Busy pages mutate the player constantly: keep a minimum gap between
+    // ticks, except while an ad is active (then every frame counts).
+    const wait = inAd || rafId ? 0 : CFG.MIN_TICK_GAP_MS - (performance.now() - lastTickAt);
+    if (wait > 0) tickTimer = setTimeout(tick, wait);
+    else tickRaf = requestAnimationFrame(tick);
   }
 
   function rafStep() {
@@ -457,37 +557,56 @@
     if (stopped) return;
     stopped = true;
     endAd();                                  // restore mute state and speed
+    syncBypass(false);
     setRootAttr(CFG.ROOT_ATTR, false);        // un-hide everything (styles.css)
     setRootAttr(CFG.ROOT_ATTR_OVERLAY, false);
     setRootAttr(CFG.ROOT_ATTR_COSMETIC, false);
     detachPlayer();
-    stopBootstrap();
     clearInterval(intervalId);
+    clearTimeout(pollTimer);
+    pollTimer = 0;
+    clearTimeout(tickTimer);
+    cancelAnimationFrame(tickRaf);
+    tickTimer = tickRaf = 0;
     if (rafId) cancelAnimationFrame(rafId);
     rafId = 0;
   }
 
   function tick() {
+    // Whoever called us (observer, interval, navigation event) takes over the
+    // queued tick, so queued ticks can never pile up.
+    clearTimeout(tickTimer);
+    cancelAnimationFrame(tickRaf);
+    tickTimer = tickRaf = 0;
     tickQueued = false;
+    lastTickAt = performance.now();
+    window.__ytpsTicks = (window.__ytpsTicks | 0) + 1;   // read by the tests (isolated world only)
     if (stopped) return;
     if (!contextAlive()) {
       shutdown();
       return;
     }
+    if (!ready) return;     // saved settings not applied yet (avoids a flash of the wrong state)
 
     if (!config.enabled) {
       endAd();
+      syncBypass(false);
       return;
     }
 
     ensurePlayer();
     checkEnforcement();
 
-    // Creator is on the allowlist: leave their ads alone.
+    // Creator is on the allowlist: leave their ads alone (page and network).
     if (isChannelAllowed()) {
       endAd();
+      syncBypass(true);
       return;
     }
+    syncBypass(false);
+
+    // Allowlist in use but the channel link is not rendered yet: wait a moment.
+    if (channelPending()) return;
 
     // Overlay close buttons can appear without the player being in "ad" mode.
     clickSkipButtons();
@@ -521,6 +640,7 @@
   }
 
   function applyConfig(partial) {
+    ready = true;
     if ('enabled' in partial) config.enabled = partial.enabled !== false;
     if ('features' in partial) {
       config.features = { ...DEFAULT_FEATURES, ...(partial.features || {}) };
@@ -575,8 +695,9 @@
   /* ------------------------------------------------------------------ *
    * Boot
    * ------------------------------------------------------------------ */
-  applyConfig({});      // start protecting immediately, storage corrects us
   initStorage();
+  // Storage normally answers within a few ms. If it does not, protect with defaults.
+  setTimeout(() => { if (!ready && !stopped) applyConfig({}); }, CFG.STORAGE_WAIT_MS);
 
   // YouTube SPA navigation (video <-> video, home -> watch, Shorts swipes...).
   // Captured on window so it works whichever node YouTube dispatches it on.
@@ -584,10 +705,24 @@
     window.addEventListener(evt, () => {
       // Force re-discovery: the player node can be replaced between pages.
       if (evt !== 'yt-navigate-start') detachPlayer();
+      if (evt === 'yt-navigate-start') {
+        navigating = true;
+        navStartedAt = performance.now();
+      } else if (evt === 'yt-navigate-finish') {
+        navigating = false;
+        navStartedAt = performance.now();
+      }
       channelCache.at = -Infinity;
       tick();
     }, true);
   }
+
+  // Put the user's mute state and speed back if the page goes away mid-ad
+  // (also covers the back/forward cache), and release the allowlist bypass.
+  window.addEventListener('pagehide', () => {
+    restoreVideo();
+    syncBypass(false);
+  });
 
   // Safety net (also fires in background tabs where rAF is paused).
   intervalId = setInterval(tick, CFG.FALLBACK_INTERVAL_MS);

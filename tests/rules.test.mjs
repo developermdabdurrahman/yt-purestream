@@ -4,11 +4,19 @@ import { createChecker, launch, sleep } from './helpers.mjs';
 const { check, finish } = createChecker();
 const t = await launch();
 
-const matches = (url, initiator, type = 'xmlhttprequest') =>
+// Rules that ALLOW a request (they match, but do not block it).
+const isAllowRule = (r) => r.rulesetId === '_session' || `${r.rulesetId}:${r.ruleId}` === 'yt_core_rules:3';
+const outcome = (url, initiator, type = 'xmlhttprequest', tabId) =>
   t.sw.evaluate(
-    async (a) => (await chrome.declarativeNetRequest.testMatchOutcome(a)).matchedRules.length,
-    { url, initiator, type }
+    async (a) => (await chrome.declarativeNetRequest.testMatchOutcome(a)).matchedRules,
+    { url, initiator, type, ...(tabId !== undefined ? { tabId } : {}) }
   );
+/** 1 if the request would be blocked, otherwise 0. */
+const matches = async (...args) => {
+  const rules = await outcome(...args);
+  return rules.length > 0 && !rules.some(isAllowRule) ? 1 : 0;
+};
+const explicitlyAllowed = async (...args) => (await outcome(...args)).some(isAllowRule);
 const YT = 'https://www.youtube.com';
 
 // --- default state ---
@@ -27,6 +35,9 @@ check('base.js is untouched', (await matches(`${YT}/s/player/abc/player_ias.vfls
 check('videoplayback is untouched', (await matches('https://rr1.googlevideo.com/videoplayback?x=1', YT, 'media')) === 0);
 check('youtubei player API is untouched', (await matches(`${YT}/youtubei/v1/player`, YT)) === 0);
 check('thumbnails are untouched', (await matches('https://i.ytimg.com/vi/x/hq.jpg', YT, 'image')) === 0);
+check('ad_status.js bait script is NOT blocked (avoids anti-adblock detection)', (await matches('https://static.doubleclick.net/instream/ad_status.js', YT, 'script')) === 0);
+check('ad_status.js is explicitly allowed by the allow rule', await explicitlyAllowed('https://static.doubleclick.net/instream/ad_status.js', YT, 'script'));
+check('other static.doubleclick.net files are still blocked', (await matches('https://static.doubleclick.net/instream/other.js', YT, 'script')) > 0);
 check('main_frame navigation is never blocked', (await matches(`${YT}/pagead/x`, YT, 'main_frame')) === 0);
 
 // --- compatibility mode: strict ruleset off, core stays on ---

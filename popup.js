@@ -25,6 +25,7 @@ const els = {
   lang: $('lang'),
   compat: $('compat'),
   compatRetry: $('compatRetry'),
+  compatSince: $('compatSince'),
   health: $('health'),
   healthBody: $('healthBody'),
   healthDismiss: $('healthDismiss'),
@@ -47,6 +48,7 @@ const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').match
 const state = {
   enabled: true,
   compat: false,
+  compatAt: null,
   health: null,
   features: { ...YTPS.DEFAULT_FEATURES },
   allowlist: [],
@@ -96,6 +98,9 @@ async function setupLanguage() {
   }
   for (const el of document.querySelectorAll('[data-i18n-title]')) {
     el.title = t(el.dataset.i18nTitle);
+  }
+  for (const el of document.querySelectorAll('[data-i18n-aria]')) {
+    el.setAttribute('aria-label', t(el.dataset.i18nAria));
   }
 }
 
@@ -157,6 +162,14 @@ function renderStats(animate) {
 
 function renderNotices() {
   els.compat.hidden = !(state.compat && state.enabled);
+  const since = Number(state.compatAt);
+  els.compatSince.hidden = !since;
+  if (since) {
+    const when = new Date(since).toLocaleDateString(effectiveLang() === 'bn' ? 'bn-BD' : 'en-US', {
+      day: 'numeric', month: 'short', year: 'numeric',
+    });
+    els.compatSince.textContent = t('compatSince', when);
+  }
 
   const h = state.health;
   els.health.hidden = !h;
@@ -275,7 +288,7 @@ els.allowList.addEventListener('click', (e) => {
 });
 
 els.compatRetry.addEventListener('click', async () => {
-  await chrome.storage.local.set({ compat: false, health: null });
+  await chrome.storage.local.set({ compat: false, compatAt: null, health: null });
   await YTPS.applyRulesets();
 });
 
@@ -308,7 +321,7 @@ els.reset.addEventListener('click', async () => {
 // Live updates while the popup is open.
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
-  for (const key of ['enabled', 'compat', 'health', 'features', 'allowlist', 'stats']) {
+  for (const key of ['enabled', 'compat', 'compatAt', 'health', 'features', 'allowlist', 'stats']) {
     if (!changes[key]) continue;
     const value = changes[key].newValue;
     if (key === 'enabled') state.enabled = value !== false;
@@ -324,6 +337,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   const saved = await chrome.storage.local.get({
     enabled: true,
     compat: false,
+    compatAt: null,
     health: null,
     features: YTPS.DEFAULT_FEATURES,
     allowlist: [],

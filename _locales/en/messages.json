@@ -22,6 +22,7 @@
 
   "compatTitle": { "message": "Compatibility mode on" },
   "compatBody": { "message": "YouTube flagged an ad blocker, so tracking-related blocks were turned off to keep videos playing." },
+  "compatSince": { "message": "Since {0}. Strict mode is retried automatically after 7 days and after every update." },
   "compatRetry": { "message": "Try strict mode again" },
 
   "healthTitle": { "message": "YouTube may have changed." },
@@ -35,7 +36,7 @@
   "featCosmetic": { "message": "Banners & feed clutter" },
 
   "channelsTitle": { "message": "Support creators" },
-  "channelsHint": { "message": "Page-level ad skipping is paused on allowed channels." },
+  "channelsHint": { "message": "On allowed channels this extension steps aside: ads are not skipped and their network requests are not blocked in that tab. It starts working again as soon as you open another channel." },
   "channelCurrent": { "message": "Current channel" },
   "channelAllow": { "message": "Allow ads" },
   "channelAllowed": { "message": "Allowed" },

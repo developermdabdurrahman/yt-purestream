@@ -107,10 +107,78 @@ function handleEnforcement() {
   });
 }
 
+/**
+ * Compatibility mode should not be permanent: YouTube's checks change. Try the
+ * strict rules again after COMPAT_RETRY_MS, and always after an update. If the
+ * dialog comes back, handleEnforcement() simply switches compat on again.
+ */
+function maybeRetryStrict({ force = false } = {}) {
+  return mutate(async () => {
+    const { enabled, compat, compatAt, health } = await chrome.storage.local.get({
+      enabled: true, compat: false, compatAt: 0, health: null,
+    });
+    if (!enabled || !compat) return false;
+    if (!force && Date.now() - (Number(compatAt) || 0) < YTPS.COMPAT_RETRY_MS) return false;
+
+    const update = { compat: false, compatAt: null };   // storage.onChanged re-applies the rulesets
+    if (health && health.code === 'enforcement-persists') update.health = null;
+    await chrome.storage.local.set(update);
+    return true;
+  });
+}
+
+let lastRetryCheck = 0;   // a busy tab must not trigger a storage read per message
+
+function checkRetryThrottled() {
+  const now = Date.now();
+  if (now - lastRetryCheck < 60 * 1000) return;
+  lastRetryCheck = now;
+  maybeRetryStrict().catch(() => {});
+}
+
+/* ------------------------ Per-tab allowlist bypass ------------------------ */
+
+const bypassRuleId = (tabId) => tabId + 1;   // rule ids must be >= 1
+
+/**
+ * While a tab shows an allowlisted channel, let that tab's YouTube requests
+ * through: a session allow rule (priority 3) beats the static block rules
+ * (priority 1) but only applies to this tab.
+ */
+function setTabBypass(tabId, on) {
+  return mutate(async () => {
+    const { enabled } = await getState();
+    const rule = {
+      id: bypassRuleId(tabId),
+      priority: 3,
+      action: { type: 'allow' },
+      condition: { tabIds: [tabId], initiatorDomains: ['youtube.com'] },
+    };
+    await chrome.declarativeNetRequest.updateSessionRules({
+      removeRuleIds: [rule.id],
+      addRules: on && enabled ? [rule] : [],
+    });
+  });
+}
+
+function clearAllBypass() {
+  return mutate(async () => {
+    const rules = await chrome.declarativeNetRequest.getSessionRules();
+    if (!rules.length) return;
+    await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: rules.map((r) => r.id) });
+  });
+}
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  setTabBypass(tabId, false).catch(() => {});
+});
+
 /* ------------------------------ Messaging ------------------------------ */
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id || !msg) return;
+
+  checkRetryThrottled();
 
   switch (msg.type) {
     case MSG.AD_SKIPPED:
@@ -121,6 +189,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     case MSG.HEALTH:
       recordHealth(msg.code);
+      return;
+    case MSG.ALLOW_TAB:
+      if (sender.tab && Number.isInteger(sender.tab.id) && sender.tab.id >= 0) {
+        setTabBypass(sender.tab.id, msg.on === true).catch(() => {});
+      }
       return;
     case MSG.ENFORCEMENT:
       handleEnforcement().then(sendResponse, () => sendResponse({ switched: false }));
@@ -172,7 +245,15 @@ chrome.storage.onChanged.addListener((changes, area) => {
     );
   }
   if (changes.stats || changes.enabled) updateBadge();
+  if (changes.enabled && changes.enabled.newValue === false) clearAllBypass().catch(() => {});
 });
 
-chrome.runtime.onInstalled.addListener(syncAll);
-chrome.runtime.onStartup.addListener(syncAll);
+chrome.runtime.onInstalled.addListener(async (details) => {
+  // New version: YouTube's checks may have changed, so try strict mode again.
+  if (details.reason === 'update') await maybeRetryStrict({ force: true }).catch(() => {});
+  await syncAll();
+});
+chrome.runtime.onStartup.addListener(async () => {
+  await maybeRetryStrict().catch(() => {});
+  await syncAll();
+});

@@ -84,6 +84,8 @@
     input:checked + .slider::before { transform: translateX(20px); }
     .switch.sm input:checked + .slider::before { transform: translateX(16px); }
     input:focus-visible + .slider { outline: 2px solid #8ab4f8; outline-offset: 2px; }
+    .chip:focus-visible, .link:focus-visible, .btn:focus-visible, #reset:focus-visible,
+    summary:focus-visible, #support:focus-visible { outline: 2px solid #8ab4f8; outline-offset: 2px; }
 
     /* Notices (compatibility mode / health) */
     .notice {
@@ -255,7 +257,7 @@
 <body>
   <div class="top">
     <h1>YT <span>PureStream</span></h1>
-    <button id="lang" class="chip" type="button" data-i18n="langSwitch" data-i18n-title="langSwitchTitle"></button>
+    <button id="lang" class="chip" type="button" data-i18n="langSwitch" data-i18n-title="langSwitchTitle" data-i18n-aria="langSwitchTitle"></button>
   </div>
 
   <div class="card">
@@ -264,7 +266,7 @@
       <div id="status" class="active"></div>
     </div>
     <label class="switch" data-i18n-title="toggleTitle">
-      <input type="checkbox" id="toggle" checked />
+      <input type="checkbox" id="toggle" role="switch" data-i18n-aria="toggleTitle" checked />
       <span class="slider"></span>
     </label>
   </div>
@@ -272,6 +274,7 @@
   <div id="compat" class="notice warn" hidden>
     <b data-i18n="compatTitle"></b>
     <p data-i18n="compatBody"></p>
+    <p id="compatSince" class="small" hidden></p>
     <button id="compatRetry" class="link" type="button" data-i18n="compatRetry"></button>
   </div>
 
@@ -298,15 +301,15 @@
     <div class="settings-body">
       <label class="opt">
         <span data-i18n="featVideo"></span>
-        <span class="switch sm"><input type="checkbox" id="fVideo" /><span class="slider"></span></span>
+        <span class="switch sm"><input type="checkbox" id="fVideo" role="switch" data-i18n-aria="featVideo" /><span class="slider"></span></span>
       </label>
       <label class="opt">
         <span data-i18n="featOverlay"></span>
-        <span class="switch sm"><input type="checkbox" id="fOverlay" /><span class="slider"></span></span>
+        <span class="switch sm"><input type="checkbox" id="fOverlay" role="switch" data-i18n-aria="featOverlay" /><span class="slider"></span></span>
       </label>
       <label class="opt">
         <span data-i18n="featCosmetic"></span>
-        <span class="switch sm"><input type="checkbox" id="fCosmetic" /><span class="slider"></span></span>
+        <span class="switch sm"><input type="checkbox" id="fCosmetic" role="switch" data-i18n-aria="featCosmetic" /><span class="slider"></span></span>
       </label>
 
       <div class="section" data-i18n="channelsTitle"></div>

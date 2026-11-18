@@ -1,0 +1,60 @@
+name: Bug report
+description: Ads still show, playback breaks, or something in the popup looks wrong
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping! YouTube changes often, so exact details help a lot.
+        (বাংলায় লিখলেও সমস্যা নেই।)
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+      description: Shown on chrome://extensions (for example 1.2.2)
+    validations:
+      required: true
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options: [Chrome, Brave, Edge, Opera, Vivaldi, Other Chromium browser]
+    validations:
+      required: true
+  - type: input
+    id: browser-version
+    attributes:
+      label: Browser version
+      description: For example 131.0.6778.86 (see chrome://version)
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What happened?
+      options:
+        - An ad was not skipped
+        - Video stuck, black screen or error
+        - '"Ad blockers are not allowed" dialog'
+        - Popup / counter problem
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a video on youtube.com ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Video link, the yellow notice in the popup (if any), other extensions installed, screenshots.

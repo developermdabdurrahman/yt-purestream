@@ -1,17 +1,21 @@
 {
   "name": "yt-purestream",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "private": true,
   "description": "YT PureStream - lightweight YouTube-only ad skipper (Manifest V3). Dev tooling only; the extension itself has zero dependencies.",
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "lint": "eslint .",
     "test": "node tests/run.mjs",
     "build": "node scripts/build.mjs",
     "store-assets": "node scripts/make-store-assets.mjs",
     "install:browser": "playwright-core install chromium"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^15.15.0",
     "playwright-core": "^1.50.0"
   }
 }

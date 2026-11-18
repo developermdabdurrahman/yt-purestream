@@ -104,9 +104,14 @@ export function wav(seconds) {
 const CLIPS = { 'clip.wav': wav(6), 'long.wav': wav(400) };
 
 /** A minimal watch page: owner link, player + video, a masthead ad, overlay ad. */
-export function watchPage({ channel = '@creator', src = '/clip.wav', video = true } = {}) {
+export function watchPage({ channel = '@creator', src = '/clip.wav', video = true, channelDelay = 0 } = {}) {
+  const owner = `<ytd-watch-metadata><ytd-video-owner-renderer><ytd-channel-name><a href="/${channel}">${channel}</a></ytd-channel-name></ytd-video-owner-renderer></ytd-watch-metadata>`;
+  // channelDelay > 0: the owner link renders late, like on the real site.
+  const ownerHtml = channelDelay
+    ? `<div id="ownerSlot"></div><script>setTimeout(() => { document.getElementById('ownerSlot').innerHTML = ${JSON.stringify(owner)}; }, ${channelDelay});</script>`
+    : owner;
   return `<!doctype html><html><body>
-<ytd-watch-metadata><ytd-video-owner-renderer><ytd-channel-name><a href="/${channel}">${channel}</a></ytd-channel-name></ytd-video-owner-renderer></ytd-watch-metadata>
+${ownerHtml}
 <div id="movie_player">${video ? `<video class="html5-main-video" src="${src}" preload="auto"></video>` : ''}<div class="ytp-ad-overlay-container" style="height:20px">overlay</div></div>
 <div id="masthead-ad" style="height:40px">AD</div>
 </body></html>`;

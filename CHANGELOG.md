@@ -2,6 +2,26 @@
 
 All notable changes to YT PureStream. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.2.2
+
+### Fixed
+- **`ad_status.js` is no longer blocked.** `static.doubleclick.net/instream/ad_status.js` is YouTube's bait script; blocking it can cause playback errors or the anti-adblock warning. A higher-priority allow rule lets it through (other `doubleclick.net` requests stay blocked).
+- **Never seeks the real video.** Muting, 16x speed and seeking to the end now happen only when the player itself has `ad-showing` / `ad-interrupting`. A lone ad overlay is only counted and its close button clicked.
+- **Shorts and overlay ads that reuse the same element** are handled again (the "already handled" memory is cleared when the active reel changes or its ad markers disappear, and when an overlay button is removed).
+- **Channel allowlist now really steps aside:** while an allowed channel is open, a per-tab network allow rule lets that tab's ad requests through (removed when you leave the channel, pause the extension or close the tab). Other tabs are unaffected. On an allowed channel the pre-roll is no longer skipped before the channel name has loaded.
+- Anti-adblock dialog detection is language independent (structure + wording in Bengali, Hindi, Spanish, Portuguese, French, German, Indonesian, Turkish, Russian, Arabic, Japanese, Korean besides English).
+- Queued internal ticks could pile up on pages with constant player changes; they can no longer.
+
+### Added
+- **Compatibility mode is retried automatically** after 7 days and after every extension update. The popup shows since when it is on.
+- Popup: accessible names (`aria-label`, `role="switch"`) on all switches and the language button, visible keyboard focus.
+- Repository: ESLint (`npm run lint`, also in CI), `.editorconfig`, bug-report issue template, `SECURITY.md`.
+
+### Performance
+- No page-wide MutationObserver while the player does not exist (short fast poll after load/navigation instead). Observer-driven ticks are spaced at least 100 ms apart (except while an ad plays). Button lookups are scoped to the player.
+- Settings are read before the page is touched, so a paused extension no longer flashes its styles on load.
+- Mute state and speed are restored when the page is hidden/unloaded mid-ad.
+
 ## 1.2.1
 
 ### Fixed

@@ -68,10 +68,10 @@
 
 ### সেটিংস (প্যানেলের নিচে "Settings" / "সেটিংস")
 - **ভিডিও বিজ্ঞাপন, ওভারলে বিজ্ঞাপন, ব্যানার ও ফিড:** আলাদা আলাদা করে চালু বা বন্ধ করা যায়।
-- **ক্রিয়েটরদের সাপোর্ট করুন:** কোনো চ্যানেলের ভিডিও খোলা অবস্থায় প্যানেল খুলে **বিজ্ঞাপন চলতে দিন (Allow ads)** চাপুন। ওই চ্যানেলে বিজ্ঞাপন আর স্কিপ হবে না। তালিকা থেকে যেকোনো সময় **সরান** দিয়ে ফিরিয়ে নিতে পারবেন।
+- **ক্রিয়েটরদের সাপোর্ট করুন:** কোনো চ্যানেলের ভিডিও খোলা অবস্থায় প্যানেল খুলে **বিজ্ঞাপন চলতে দিন (Allow ads)** চাপুন। ওই চ্যানেলের ট্যাবে বিজ্ঞাপন আর স্কিপ হবে না এবং বিজ্ঞাপনের নেটওয়ার্ক রিকোয়েস্টও আটকানো হবে না (অন্য ট্যাবে আগের মতোই কাজ করবে)। তালিকা থেকে যেকোনো সময় **সরান** দিয়ে ফিরিয়ে নিতে পারবেন।
 
 ### হলুদ নোটিস দেখলে
-- **"কম্প্যাটিবিলিটি মোড চালু":** YouTube অ্যাড ব্লকার ধরে ফেলেছিল, তাই ভিডিও চালু রাখতে এক্সটেনশন কিছু ব্লক নিজে বন্ধ করেছে। চাইলে "আবার কড়া মোড চালু করুন" চাপতে পারেন।
+- **"কম্প্যাটিবিলিটি মোড চালু":** YouTube অ্যাড ব্লকার ধরে ফেলেছিল, তাই ভিডিও চালু রাখতে এক্সটেনশন কিছু ব্লক নিজে বন্ধ করেছে। চাইলে "আবার কড়া মোড চালু করুন" চাপতে পারেন। না চাপলেও ৭ দিন পর এবং প্রতিটি আপডেটের পর এক্সটেনশন নিজে থেকে কড়া মোড আবার চেষ্টা করে (সমস্যা ফিরে এলে আবার কম্প্যাটিবিলিটি মোডে যায়)।
 - **"ইউটিউব সম্ভবত বদলে গেছে":** বিজ্ঞাপন ধরা পড়েছে কিন্তু সামলানো যায়নি। এক্সটেনশনের নতুন ভার্সন আছে কিনা দেখুন।
 
 ## ৪. আপডেট করবেন কীভাবে
@@ -122,7 +122,7 @@ permission, collects no data and never runs on other sites.
 - Skips video ads: mutes, plays at 16x, jumps to the end, clicks skip/close buttons, then restores your volume and speed.
 - Hides banner, feed and sidebar promos (never the player).
 - Counter for ads skipped (total / today), estimated **time saved**, and a toolbar badge.
-- **Compatibility mode:** if YouTube shows its "Ad blockers are not allowed" dialog, the strict network rules are switched off automatically and the page reloads once.
+- **Compatibility mode:** if YouTube shows its "Ad blockers are not allowed" dialog (detected by structure and in many interface languages), the strict network rules are switched off automatically and the page reloads once. Strict mode is retried after 7 days and after every extension update.
 - Shorts ads are skipped; feed ads are hidden.
 - Per-feature switches (video ads, overlay ads, banners/feed) and a **channel allowlist** to support creators.
 - Bengali and English interface (switch inside the popup).
@@ -132,7 +132,7 @@ permission, collects no data and never runs on other sites.
 
 | Layer | File | What it does |
 |-------|------|--------------|
-| Network | `rules_core.json` | Blocks `youtube.com/pagead/*` and `doubleclick.net`, only when the request comes from youtube.com. |
+| Network | `rules_core.json` | Blocks `youtube.com/pagead/*` and `doubleclick.net`, only when the request comes from youtube.com. YouTube's own bait script `static.doubleclick.net/instream/ad_status.js` is deliberately **allowed**: blocking it is a known trigger for the anti-adblock warning. |
 | Network | `rules_strict.json` | Blocks `youtube.com/ptracking*` and `/api/stats/ads*`. Turned off by compatibility mode. |
 | Behaviour | `content.js` | Watches `#movie_player`, skips ads, handles Shorts, SPA navigation, allowlist, anti-adblock detection and health reports. Stops itself if the extension is reloaded or removed. |
 | Cosmetic | `styles.css` | Hides promo clutter, gated by attributes set from the popup switches. Never hides `#movie_player`. |
@@ -153,7 +153,7 @@ requests are never blocked (verified by the automated tests).
 ## Usage
 
 - Click the toolbar icon and flip the main switch. "Active" = ad skipping, network rules and cosmetic hiding are on; "Paused" = everything is off. Changes apply immediately, no reload needed (tabs that were open before an extension reload need one page refresh).
-- **Settings** (in the popup): choose which kinds of ads to handle, and allow ads on specific channels. To allow a channel, open one of its videos, open the popup and press **Allow ads**. Note: the allowlist pauses *page-level* skipping; the network rules still apply.
+- **Settings** (in the popup): choose which kinds of ads to handle, and allow ads on specific channels. To allow a channel, open one of its videos, open the popup and press **Allow ads**. The allowlist applies per tab: while an allowed channel is open, ads are not skipped **and** their network requests are not blocked in that tab (a temporary per-tab rule, removed when you leave the channel or close the tab). Other tabs keep working as usual.
 - **Language:** the button at the top right switches between English and Bengali.
 - **Reset** clears the counters (press twice to confirm).
 
@@ -166,13 +166,13 @@ requests are never blocked (verified by the automated tests).
 | **Microsoft Edge Add-ons** | Edge users | Free to publish; same ZIP works. |
 
 ### Make a release (GitHub)
-1. Bump `version` in **both** `manifest.json` and `package.json`, and add notes to `CHANGELOG.md`.
+1. Bump `version` in `manifest.json`, `package.json` and `package-lock.json`, and add notes to `CHANGELOG.md`.
 2. Commit, then tag and push:
    ```
-   git tag v1.2.1
+   git tag v1.2.2
    git push origin main --tags
    ```
-3. The **Release** workflow runs the tests, builds `YT-PureStream-v1.2.1.zip` and attaches it to a new GitHub Release. Share the Release page link.
+3. The **Release** workflow runs the tests, builds `YT-PureStream-v1.2.2.zip` and attaches it to a new GitHub Release. Share the Release page link.
 
 You can also build the ZIP locally: `npm run build` creates `dist/YT-PureStream-v<version>.zip` with runtime files only.
 
@@ -185,7 +185,8 @@ Set `SUPPORT_URL` at the top of `common.js` (for example a GitHub Sponsors, Ko-f
 ## Development
 
 ```
-npm install                 # installs playwright-core (dev only)
+npm install                 # installs the dev tools (playwright-core, eslint)
+npm run lint                # ESLint
 npm run install:browser     # downloads Chromium for the tests
 npm test                    # end-to-end tests against a mock YouTube page
 npm run build               # dist/YT-PureStream-v<version>.zip

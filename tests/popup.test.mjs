@@ -56,7 +56,7 @@ await sleep(300);
 check('two tabs at once both counted (6 -> 8)', (await stats()).total === 8);
 
 /* =============== Popup display =============== */
-let popup = await openPopup();
+const popup = await openPopup();
 check('popup: status Active', (await text(popup, '#status')) === 'Active');
 check('popup: total = 8', (await text(popup, '#total')) === '8', await text(popup, '#total'));
 check('popup: today = 8', (await text(popup, '#today')) === '8');
@@ -134,6 +134,31 @@ await popup.click('#compatRetry');
 await sleep(700);
 check('compat retry: notice hidden, strict ruleset back', (await popup.evaluate(() => document.getElementById('compat').hidden)) && (await t.rulesets()).includes('yt_strict_rules'));
 
+// The notice says since when compat mode is on and that it is retried.
+const attr = (pg, sel, name) => pg.evaluate(([s, n]) => document.querySelector(s).getAttribute(n), [sel, name]);
+check('compat since-line hidden without a date', await popup.evaluate(() => document.getElementById('compatSince').hidden));
+await t.setStorage({ compat: true, compatAt: new Date('2026-03-05T12:00:00').getTime() });
+await sleep(700);
+const since = await text(popup, '#compatSince');
+check('compat since-line shows the date and the retry rule', since.includes('2026') && since.includes('7 days'), since);
+await t.setStorage({ compat: false, compatAt: null });
+await sleep(600);
+check('compat since-line hidden again', await popup.evaluate(() => document.getElementById('compatSince').hidden));
+
+/* =============== Accessibility =============== */
+check('a11y: main switch has an accessible name', (await attr(popup, '#toggle', 'aria-label')) === 'Enable / disable YT PureStream');
+check('a11y: feature switches are labelled', (await attr(popup, '#fVideo', 'aria-label')) === 'Video ads (skip & speed up)' && (await attr(popup, '#fCosmetic', 'aria-label')) === 'Banners & feed clutter');
+check('a11y: switches expose role=switch', (await attr(popup, '#toggle', 'role')) === 'switch');
+check('a11y: language button is labelled', (await attr(popup, '#lang', 'aria-label')) === 'Switch language');
+await popup.focus('#lang');
+await popup.keyboard.press('Enter');
+await sleep(600);
+check('a11y: language can be switched with the keyboard', (await text(popup, '#status')) === 'চালু');
+check('a11y: aria labels follow the language', (await attr(popup, '#toggle', 'aria-label')) !== 'Enable / disable YT PureStream');
+await popup.keyboard.press('Enter');
+await sleep(600);
+check('a11y: and back again', (await text(popup, '#status')) === 'Active');
+
 /* =============== Health notice =============== */
 await t.setStorage({ health: { code: 'no-video', at: Date.now() } });
 await sleep(600);
@@ -150,7 +175,7 @@ check('health dismissed', (await t.storage('health')).health === null && (await 
 await popup.evaluate(() => document.getElementById('settings').open = true);
 await popup.click('label:has(#fOverlay) .slider');
 await sleep(400);
-let f = (await t.storage('features')).features;
+const f = (await t.storage('features')).features;
 check('feature switch saved (overlay off)', f.overlay === false && f.video !== false, JSON.stringify(f));
 const popup2 = await openPopup();
 check('feature switch restored on reopen', await popup2.evaluate(() => !document.getElementById('fOverlay').checked && document.getElementById('fVideo').checked));

@@ -3,7 +3,9 @@
  * popup (<script>). Not used by the content script.
  */
 
-/* Edit these two values to customise the extension. */
+/* exported YTPS, YTPS_CONFIG */
+
+/* Edit these values to customise the extension. */
 const YTPS_CONFIG = {
   // Shown as "Support this project" in the popup footer. Leave '' to hide it.
   // Example: 'https://github.com/sponsors/your-name' or 'https://ko-fi.com/your-name'
@@ -22,7 +24,11 @@ const YTPS = {
     ENFORCEMENT: 'ytps:enforcement',
     HEALTH: 'ytps:health',
     GET_CHANNEL: 'ytps:get-channel', // popup -> content script
+    ALLOW_TAB: 'ytps:allow-tab',     // content script: this tab shows an allowlisted channel
   },
+
+  /** Compatibility mode is lifted again after this long (and after every update). */
+  COMPAT_RETRY_MS: 7 * 24 * 60 * 60 * 1000,
 
   /** Cap on the seconds credited to "time saved" for a single ad. */
   MAX_SAVED_PER_AD: 180,
